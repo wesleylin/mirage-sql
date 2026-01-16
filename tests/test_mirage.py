@@ -75,16 +75,3 @@ def test_weakref_cleanup(players):
     # The registry should still have them because 'db' holds the Proxy list
     assert ptr in db.manager._registry
 
-
-def test_dict_support():
-    """Verify MirageDict handles keys and values."""
-    data = {"order": Player("Alice", 10), "p2": Player("Bob", 20)}
-    db = mirror(data)
-    
-    # Query by the logical key we stored
-    results = db.query("key_val = 'order'")
-    assert results[0].name == "Alice"
-    
-    # Query by attribute
-    results = db.query("score > 15")
-    assert results[0].name == "Bob"

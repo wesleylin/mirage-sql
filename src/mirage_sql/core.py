@@ -2,7 +2,7 @@ import sqlite3
 import weakref
 from collections import UserList, UserDict
 from dataclasses import is_dataclass, fields
-from typing import Any, Iterable, Union, List, Dict
+from typing import Any, Iterable, Union, List, Dict, overload
 
 def get_sqlite_type(value: Any) -> str:
     if isinstance(value, bool): return "INTEGER"
@@ -106,6 +106,13 @@ class MirageDict(UserDict):
         # 'key_val' is the special column for dict keys
         cursor = self.manager.conn.execute(f"SELECT obj_ptr FROM data WHERE {where}")
         return [MirageProxy(self.manager._registry[row['obj_ptr']], self.manager) for row in cursor.fetchall()]
+
+@overload
+def mirror(collection: List) -> MirageList: ...
+
+
+@overload
+def mirror(collection: Dict) -> MirageDict: ...
 
 def mirror(collection: Union[List, Dict]):
     if not collection:
