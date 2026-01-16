@@ -104,16 +104,22 @@ class MirageManager:
         self.conn.execute(query, all_values)
         self.conn.commit()
 
-    def remove_object(self, obj: Any):
-        self.conn.execute("DELETE FROM data WHERE obj_ptr = ?", (id(obj),))
+    def remove_object(self, table_name:str, obj: Any):
+        self.conn.execute(f"DELETE FROM {table_name} WHERE obj_ptr = ?", (id(obj),))
         self.conn.commit()
 
 class MirageList(UserList):
     def __init__(self, initlist, manager):
+        if not initlist:
+            raise ValueError("MirageList requires at least one item for type inference.")
+
         super().__init__([MirageProxy(obj, manager) for obj in initlist])
         self.manager = manager
         for obj in initlist:
             self.manager.sync_object(obj, is_new=True)
+
+        first_item = initlist[0]
+        self.table_name = self.manager.register_type(first_item)
 
     def append(self, item):
         proxy = MirageProxy(item, self.manager)
@@ -121,7 +127,7 @@ class MirageList(UserList):
         self.manager.sync_object(item, is_new=True)
 
     def query(self, where: str) -> List[Any]:
-        cursor = self.manager.conn.execute(f"SELECT obj_ptr FROM data WHERE {where}")
+        cursor = self.manager.conn.execute(f"SELECT obj_ptr FROM {self.table_name} WHERE {where}")
         return [MirageProxy(self.manager._registry[row['obj_ptr']], self.manager) for row in cursor.fetchall()]
     
     def pop(self, index=-1):
@@ -130,16 +136,22 @@ class MirageList(UserList):
         
         # 2. Tell the manager to delete it from SQL 
         # (We use ._target because the manager needs the real object ID)
-        self.manager.remove_object(item_proxy._target)
+        self.manager.remove_object(self.table_name, item_proxy._target)
         return super().pop(index)
     
 
 class MirageDict(UserDict):
-    def __init__(self, initdict, manager):
+    def __init__(self, initdict:Dict, manager):
+        if not initdict:
+            raise ValueError("MirageDict requires at least one item for type inference.")
         self.manager = manager
         super().__init__({k: MirageProxy(v, manager) for k, v in initdict.items()})
         for k, v in initdict.items():
             self.manager.sync_object(v, key_val=k, is_new=True)
+
+        _, first_val = next(iter(initdict.items()))
+        self.table_name = self.manager.register_type(first_val)
+
 
     def __setitem__(self, key, value):
         proxy = MirageProxy(value, self.manager)
@@ -148,7 +160,7 @@ class MirageDict(UserDict):
 
     def query(self, where: str) -> List[Any]:
         # 'key_val' is the special column for dict keys
-        cursor = self.manager.conn.execute(f"SELECT obj_ptr FROM data WHERE {where}")
+        cursor = self.manager.conn.execute(f"SELECT obj_ptr FROM {self.table_name} WHERE {where}")
         return [MirageProxy(self.manager._registry[row['obj_ptr']], self.manager) for row in cursor.fetchall()]
 
 @overload
