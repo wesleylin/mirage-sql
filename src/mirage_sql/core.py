@@ -79,6 +79,16 @@ class MirageList(UserList):
     def query(self, where: str) -> List[Any]:
         cursor = self.manager.conn.execute(f"SELECT obj_ptr FROM data WHERE {where}")
         return [MirageProxy(self.manager._registry[row['obj_ptr']], self.manager) for row in cursor.fetchall()]
+    
+    def pop(self, index=-1):
+        # 1. Get the proxy object at that index
+        item_proxy = self.data[index]
+        
+        # 2. Tell the manager to delete it from SQL 
+        # (We use ._target because the manager needs the real object ID)
+        self.manager.remove_object(item_proxy._target)
+        return super().pop(index)
+    
 
 class MirageDict(UserDict):
     def __init__(self, initdict, manager):

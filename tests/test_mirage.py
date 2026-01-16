@@ -45,7 +45,8 @@ def test_list_mutation(players):
     assert len(db.query("attr_name = 'Dave'")) == 1
     
     # Pop Bob
-    db.pop(1)
+    result =  db.pop(1)
+    assert result.name == 'Bob'
     assert len(db.query("attr_name = 'Bob'")) == 0
 
 def test_dict_support():
