@@ -1,3 +1,3 @@
-from .core import Mirage
+from .core import mirror
 
-__all__ = ["Mirage"]
+__all__ = ["mirror"]

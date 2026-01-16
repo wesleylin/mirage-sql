@@ -1,40 +1,34 @@
 from dataclasses import dataclass
-from mirage_sql import Mirage
+from mirage_sql import mirror
 
 @dataclass
-class User:
+class Hero:
     name: str
-    age: int
-    city: str
+    hp: int
+    level: int
 
-# 1. Create some live Python objects
-users = [
-    User("Alice", 30, "New York"),
-    User("Bob", 22, "London"),
-    User("Charlie", 35, "New York"),
-]
+# --- List Demo ---
+heroes = mirror([
+    Hero("Arthur", 100, 5),
+    Hero("Gwen", 80, 10),
+    Hero("Merlin", 75, 7)
+])
 
-# 2. Mirror them into SQL
-db = Mirage(users)
+print("Querying List...")
+strong_heroes = heroes.query("attr_hp > 50 AND attr_level >= 5")
+print(f"Found: {strong_heroes}")
 
-# 3. Query using standard SQL syntax
+# Live Sync Test
+heroes[0].hp = 10  # Arthur takes damage
+still_strong = heroes.query("attr_hp > 50")
+print(f"Still strong: {still_strong}") # Only Gwen remains
 
+# --- Dict Demo ---
+party = mirror({
+    "tank": Hero("Arthur", 100, 5),
+    "healer": Hero("Gwen", 80, 10)
+})
 
-# results = db.query("age < 30 OR city = 'New York'")
-
-# users[0].age = 10
-# results = db.query("age < 30")
-# print(results)
-
-managed_users = db.objects
-managed_users[0].age = 10
-results = db.query("age < 30")
-print(results)
-
-
-print(f"Found {len(results)} users:")
-for user in results:
-    print(f"- {user.name} (Object type: {type(user).__name__})")
-
-# Verify they are the SAME objects, not copies
-print(f"Is result Alice the same object? {results[0] is users[0]}")
+print("\nQuerying Dict by Key...")
+healer = party.query("key_val = 'healer'")
+print(f"Healer Found: {healer[0].name}")
