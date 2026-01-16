@@ -43,7 +43,7 @@ class MirageManager:
         return [k for k in vars(obj).keys() if not k.startswith('_')]
 
     def _create_table(self):
-        col_defs = [f"attr_{c} {get_sqlite_type(None)}" for c in self.cols] # Type mapping can be refined
+        col_defs = [f"\"{c}\" {get_sqlite_type(None)}" for c in self.cols] # Type mapping can be refined
         query = f"CREATE TABLE data (obj_ptr INTEGER PRIMARY KEY, key_val TEXT, {', '.join(col_defs)})"
         self.conn.execute(query)
 
@@ -56,7 +56,7 @@ class MirageManager:
             placeholders = ", ".join(["?"] * len(vals))
             self.conn.execute(f"INSERT OR REPLACE INTO data VALUES ({placeholders})", vals)
         else:
-            set_clause = ", ".join([f"attr_{c} = ?" for c in self.cols])
+            set_clause = ", ".join([f"\"{c}\" = ?" for c in self.cols])
             self.conn.execute(f"UPDATE data SET {set_clause} WHERE obj_ptr = ?", vals[2:] + [ptr])
         self.conn.commit()
 

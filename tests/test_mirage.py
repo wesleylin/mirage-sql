@@ -18,7 +18,7 @@ def players():
 def test_list_identity(players):
     """Verify that results from query ARE the original objects."""
     db = mirror(players)
-    results = db.query("attr_score > 150")
+    results = db.query("score > 150")
     
     assert len(results) == 2
     # Identity check (is) vs Equality check (==)
@@ -32,7 +32,7 @@ def test_live_sync(players):
     db[0].score = 500 
     
     # Query SQL for the new score
-    results = db.query("attr_score > 400")
+    results = db.query("score > 400")
     assert len(results) == 1
     assert results[0].name == "Alice"
 
@@ -42,12 +42,12 @@ def test_list_mutation(players):
     
     # Append new
     db.append(Player("Dave", 400))
-    assert len(db.query("attr_name = 'Dave'")) == 1
+    assert len(db.query("name = 'Dave'")) == 1
     
     # Pop Bob
     result =  db.pop(1)
     assert result.name == 'Bob'
-    assert len(db.query("attr_name = 'Bob'")) == 0
+    assert len(db.query("name = 'Bob'")) == 0
 
 def test_dict_support():
     """Verify MirageDict handles keys and values."""
@@ -59,7 +59,7 @@ def test_dict_support():
     assert results[0].name == "Alice"
     
     # Query by attribute
-    results = db.query("attr_score > 15")
+    results = db.query("score > 15")
     assert results[0].name == "Bob"
 
 def test_weakref_cleanup(players):
@@ -74,3 +74,17 @@ def test_weakref_cleanup(players):
     
     # The registry should still have them because 'db' holds the Proxy list
     assert ptr in db.manager._registry
+
+
+def test_dict_support():
+    """Verify MirageDict handles keys and values."""
+    data = {"order": Player("Alice", 10), "p2": Player("Bob", 20)}
+    db = mirror(data)
+    
+    # Query by the logical key we stored
+    results = db.query("key_val = 'order'")
+    assert results[0].name == "Alice"
+    
+    # Query by attribute
+    results = db.query("score > 15")
+    assert results[0].name == "Bob"
