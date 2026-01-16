@@ -29,13 +29,14 @@ class MirageProxy:
 
 class MirageManager:
     """Handles the SQLite connection and schema inference."""
-    def __init__(self, sample_obj: Any):
+    def __init__(self, sample_obj: Any=None):
         self.conn = sqlite3.connect(":memory:")
         self.conn.row_factory = sqlite3.Row
         self._registry = weakref.WeakValueDictionary()
         self._in_transaction = False
-        self.cols = self._infer_columns(sample_obj)
-        self._create_table()
+        # self.cols = self._infer_columns(sample_obj)
+        # self._create_table()
+        self.tables = {} # Format: {"classname": ["col1", "col2", ...]}
 
     def _infer_columns(self, obj: Any) -> List[str]:
         if is_dataclass(obj):
@@ -47,17 +48,60 @@ class MirageManager:
         query = f"CREATE TABLE data (obj_ptr INTEGER PRIMARY KEY, key_val TEXT, {', '.join(col_defs)})"
         self.conn.execute(query)
 
+    def _get_table_name(self, obj: Any) -> str:
+        """Determines the table name (lowercase class name)."""
+        # Safety: Reach through proxy if it exists
+        real_obj = getattr(obj, '_target', obj)
+        return real_obj.__class__.__name__.lower()
+
+    def register_type(self, obj: Any):
+        """Creates a table for the object's class if it doesn't exist."""
+
+        real_obj = obj
+        while hasattr(real_obj, '_target'):
+            real_obj = real_obj._target
+        table_name = self._get_table_name(real_obj)
+        
+        if table_name in self.tables:
+            return table_name # Already exists
+        
+        # Infer columns (dataclass or standard object)
+        print(real_obj)
+        if is_dataclass(real_obj):
+            cols = [f.name for f in fields(real_obj)]
+        else:
+            cols = [k for k in vars(real_obj).keys() if not k.startswith('_')]
+        
+        self.tables[table_name] = cols
+        
+        # Build the CREATE TABLE query
+        col_defs = [f'"{c}" TEXT' for c in cols]
+        if len(col_defs) == 0:
+            raise Exception("incorrect col_defs")
+        query = f'CREATE TABLE IF NOT EXISTS "{table_name}" (obj_ptr INTEGER PRIMARY KEY, key_val TEXT, {", ".join(col_defs)} )'
+        print(f"query {query}")
+        self.conn.execute(query)
+        return table_name
+    
+
     def sync_object(self, obj: Any, key_val: Any = None, is_new: bool = False):
+        # fetch table
+        table_name = self.register_type(obj)
+        cols = self.tables[table_name]
+
+        # fetch real_object if proxy, real id and data
+        real_obj = getattr(obj, '_target', obj)
         ptr = id(obj)
         self._registry[ptr] = obj
-        vals = [ptr, str(key_val) if key_val else None] + [getattr(obj, c, None) for c in self.cols]
+
+        attr_values = [getattr(real_obj, c, None) for c in cols]
+        all_values = [ptr, str(key_val) if key_val else None] + attr_values
+        # vals = [ptr, str(key_val) if key_val else None] + [getattr(obj, c, None) for c in self.cols]
         
-        if is_new:
-            placeholders = ", ".join(["?"] * len(vals))
-            self.conn.execute(f"INSERT OR REPLACE INTO data VALUES ({placeholders})", vals)
-        else:
-            set_clause = ", ".join([f"\"{c}\" = ?" for c in self.cols])
-            self.conn.execute(f"UPDATE data SET {set_clause} WHERE obj_ptr = ?", vals[2:] + [ptr])
+        placeholders = ", ".join(["?"] * len(all_values))
+        col_names = ", ".join([f'"{c}"' for c in cols])
+        query = f'INSERT OR REPLACE INTO "{table_name}" (obj_ptr, key_val, {col_names}) VALUES ({placeholders})'
+        self.conn.execute(query, all_values)
         self.conn.commit()
 
     def remove_object(self, obj: Any):
