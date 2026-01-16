@@ -34,19 +34,7 @@ class MirageManager:
         self.conn.row_factory = sqlite3.Row
         self._registry = weakref.WeakValueDictionary()
         self._in_transaction = False
-        # self.cols = self._infer_columns(sample_obj)
-        # self._create_table()
         self.tables = {} # Format: {"classname": ["col1", "col2", ...]}
-
-    def _infer_columns(self, obj: Any) -> List[str]:
-        if is_dataclass(obj):
-            return [f.name for f in fields(obj)]
-        return [k for k in vars(obj).keys() if not k.startswith('_')]
-
-    def _create_table(self):
-        col_defs = [f"\"{c}\" {get_sqlite_type(None)}" for c in self.cols] # Type mapping can be refined
-        query = f"CREATE TABLE data (obj_ptr INTEGER PRIMARY KEY, key_val TEXT, {', '.join(col_defs)})"
-        self.conn.execute(query)
 
     def _get_table_name(self, obj: Any) -> str:
         """Determines the table name (lowercase class name)."""
