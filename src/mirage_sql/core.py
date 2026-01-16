@@ -79,8 +79,8 @@ class MirageManager:
 
         # fetch real_object if proxy, real id and data
         real_obj = getattr(obj, '_target', obj)
-        ptr = id(obj)
-        self._registry[ptr] = obj
+        ptr = id(real_obj)
+        self._registry[ptr] = real_obj
 
         attr_values = [getattr(real_obj, c, None) for c in cols]
         all_values = [ptr, str(key_val) if key_val else None] + attr_values
