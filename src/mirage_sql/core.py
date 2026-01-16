@@ -9,6 +9,7 @@ class MirageProxy:
         self.__dict__['_parent'] = parent
 
     def __setattr__(self, name, value):
+        # print(f"setattr {name}, {value}")
         setattr(self._target, name, value)
         self._parent._update_object_in_sql(self._target)
 

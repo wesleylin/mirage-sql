@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from mirage import Mirage
+from mirage_sql import Mirage
 
 @dataclass
 class User:
@@ -18,7 +18,19 @@ users = [
 db = Mirage(users)
 
 # 3. Query using standard SQL syntax
-results = db.query("age > 25 AND city = 'New York'")
+
+
+# results = db.query("age < 30 OR city = 'New York'")
+
+# users[0].age = 10
+# results = db.query("age < 30")
+# print(results)
+
+managed_users = db.objects
+managed_users[0].age = 10
+results = db.query("age < 30")
+print(results)
+
 
 print(f"Found {len(results)} users:")
 for user in results:

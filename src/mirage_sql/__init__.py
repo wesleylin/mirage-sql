@@ -1,2 +1,3 @@
-def hello() -> str:
-    return "Hello from mirage-sql!"
+from .core import Mirage
+
+__all__ = ["Mirage"]
