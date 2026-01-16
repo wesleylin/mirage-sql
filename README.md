@@ -53,3 +53,11 @@ Mirage will auto infer indexes, but you can explicitly add them as well
 # Explicitly tell Mirage which fields to index for speed
 users = mirage.mirror(my_list, index=["age", "city"])
 ```
+
+## Development
+
+```
+uv run examples/simple_demo.py
+
+uv run pytest
+```
