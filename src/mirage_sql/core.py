@@ -41,7 +41,6 @@ class MirageManager:
             return table_name # Already exists
         
         # Infer columns (dataclass or standard object)
-        print(real_obj)
         if is_dataclass(real_obj):
             cols = [f.name for f in fields(real_obj)]
         else:
@@ -54,7 +53,6 @@ class MirageManager:
         if len(col_defs) == 0:
             raise Exception("incorrect col_defs")
         query = f'CREATE TABLE IF NOT EXISTS "{table_name}" (obj_ptr INTEGER PRIMARY KEY, key_val TEXT, {", ".join(col_defs)} )'
-        print(f"query {query}")
         self.conn.execute(query)
         return table_name
     
@@ -83,20 +81,29 @@ class MirageManager:
         self.conn.execute(f"DELETE FROM {table_name} WHERE obj_ptr = ?", (id(obj),))
         self.conn.commit()
 
-@overload
-def mirror(collection: List) -> MirageList: ...
 
 
-@overload
-def mirror(collection: Dict) -> MirageDict: ...
-
-def mirror(collection: Union[List, Dict]):
-    if not collection:
-        raise ValueError("Collection cannot be empty for inference.")
-    
-    sample = list(collection.values())[0] if isinstance(collection, dict) else collection[0]
-    manager = MirageManager(sample)
-    
-    if isinstance(collection, dict):
-        return MirageDict(collection, manager)
-    return MirageList(collection, manager)
+    def join_query(self, select_cols: str, tables: List[str], where: str) -> List[tuple]:
+        """
+        Executes a JOIN and returns the actual Python objects.
+        Example: select_cols="player.obj_ptr, item.obj_ptr"
+        """
+        query = f"SELECT {select_cols} FROM {tables[0]} "
+        # Simple join logic for MVP (Inner Join)
+        for table in tables[1:]:
+            query += f" JOIN {table}" # You can expand this for 'ON' clauses
+        
+        query += f" WHERE {where}"
+        
+        cursor = self.conn.execute(query)
+        rows = cursor.fetchall()
+        
+        results = []
+        for row in rows:
+            # Convert the row of ptrs into a tuple of Proxies
+            result_tuple = tuple(
+                MirageProxy(self._registry[ptr], self) for ptr in row
+            )
+            results.append(result_tuple)
+            
+        return results

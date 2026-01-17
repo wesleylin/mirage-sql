@@ -60,4 +60,5 @@ users = mirage.mirror(my_list, index=["age", "city"])
 uv run examples/simple_demo.py
 
 uv run pytest
+uv run pytest tests/test_joins.py
 ```
