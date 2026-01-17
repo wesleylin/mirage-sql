@@ -1,6 +1,6 @@
 import pytest
 from dataclasses import dataclass
-from mirage_sql import mirror
+from mirage_sql import mirror, get_global_manager
 
 @dataclass
 class Player:
@@ -14,6 +14,20 @@ def players():
         Player("Bob", 200),
         Player("Charlie", 300)
     ]
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    """Reset the global manager before every single test."""
+
+    manager = get_global_manager()
+    # Drop all tables and clear the registry
+    cursor = manager.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = [row[0] for row in cursor.fetchall()]
+    for table in tables:
+        manager.conn.execute(f'DROP TABLE "{table}"')
+    manager._registry.clear()
+    manager.tables.clear()
+    yield
 
 def test_list_identity(players):
     """Verify that results from query ARE the original objects."""
