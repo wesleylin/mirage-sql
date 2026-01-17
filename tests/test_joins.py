@@ -86,3 +86,38 @@ def test_join_mutation_sync():
     
     # Join should now be empty
     assert len(players.join(items, "player.id = item.owner_id")) == 0
+
+def test_manager_direct_join_query():
+    """Verify executing a raw JOIN via the manager returns correct objects."""
+    manager = get_global_manager()
+    
+    # 1. Setup data
+    p = Player(10, "Zelda")
+    i = Item("Master Sword", 10)
+    
+    mirror([p])
+    mirror([i])
+    
+    # 2. Execute a raw SQL join through the manager's connection
+    # We are looking for the obj_ptr from both tables
+    query = """
+        SELECT player.obj_ptr AS p_ptr, item.obj_ptr AS i_ptr 
+        FROM player 
+        JOIN item ON player.id = item.owner_id 
+        WHERE player.name = 'Zelda'
+    """
+    cursor = manager.conn.execute(query)
+    row = cursor.fetchone()
+    
+    assert row is not None
+    
+    # 3. Manually resolve the pointers from the registry
+    # This is exactly what MirageList.join does under the hood
+    retrieved_player = manager._registry[row['p_ptr']]
+    retrieved_item = manager._registry[row['i_ptr']]
+    
+    # 4. Assertions
+    assert retrieved_player.name == "Zelda"
+    assert retrieved_item.name == "Master Sword"
+    assert retrieved_player is p  # Identity check
+    assert retrieved_item is i    # Identity check
