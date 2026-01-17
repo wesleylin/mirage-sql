@@ -101,13 +101,15 @@ class MirageList(UserList):
         if not initlist:
             raise ValueError("MirageList requires at least one item for type inference.")
 
+        self.manager = manager 
+        first_item = initlist[0]
+        self.table_name = self.manager.register_type(first_item)
         super().__init__([MirageProxy(obj, manager) for obj in initlist])
-        self.manager = manager
+        
         for obj in initlist:
             self.manager.sync_object(obj, is_new=True)
 
-        first_item = initlist[0]
-        self.table_name = self.manager.register_type(first_item)
+
 
     def append(self, item):
         proxy = MirageProxy(item, self.manager)
@@ -132,13 +134,14 @@ class MirageDict(UserDict):
     def __init__(self, initdict:Dict, manager):
         if not initdict:
             raise ValueError("MirageDict requires at least one item for type inference.")
+        
         self.manager = manager
+        _, first_val = next(iter(initdict.items()))
+        self.table_name = self.manager.register_type(first_val)
+
         super().__init__({k: MirageProxy(v, manager) for k, v in initdict.items()})
         for k, v in initdict.items():
             self.manager.sync_object(v, key_val=k, is_new=True)
-
-        _, first_val = next(iter(initdict.items()))
-        self.table_name = self.manager.register_type(first_val)
 
 
     def __setitem__(self, key, value):
