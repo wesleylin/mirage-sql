@@ -2,6 +2,14 @@ from typing import Union, List, Dict, overload
 from .core import MirageManager
 from .collections import MirageList, MirageDict
 
+_GLOBAL_MANAGER = None
+
+def get_manager() -> MirageManager:
+    global _GLOBAL_MANAGER
+    if _GLOBAL_MANAGER is None:
+        _GLOBAL_MANAGER = MirageManager()
+    return _GLOBAL_MANAGER
+
 @overload
 def mirror(collection: List) -> MirageList: ...
 
