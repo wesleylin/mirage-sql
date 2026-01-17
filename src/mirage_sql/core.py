@@ -103,6 +103,7 @@ class MirageList(UserList):
 
         self.manager = manager 
         first_item = initlist[0]
+        self.allowed_type = type(getattr(first_item, '_target', first_item))
         self.table_name = self.manager.register_type(first_item)
         super().__init__([MirageProxy(obj, manager) for obj in initlist])
         
@@ -112,7 +113,19 @@ class MirageList(UserList):
 
 
     def append(self, item):
-        proxy = MirageProxy(item, self.manager)
+        # 1. Type Enforcement (Optional but recommended)
+        real_item = getattr(item, '_target', item)
+        if not isinstance(real_item, self.allowed_type):
+            raise TypeError(f"Expected {self.allowed_type.__name__}, got {type(real_item).__name__}")
+
+        # 2. Check if it's already a proxy
+        if isinstance(item, MirageProxy):
+            proxy = item
+            # Optional: ensure it's using the current manager
+            proxy.__dict__['_manager'] = self.manager 
+        else:
+            proxy = MirageProxy(item, self.manager)
+
         super().append(proxy)
         self.manager.sync_object(item, is_new=True)
 
@@ -138,6 +151,7 @@ class MirageDict(UserDict):
         self.manager = manager
         _, first_val = next(iter(initdict.items()))
         self.table_name = self.manager.register_type(first_val)
+        self.allowed_type = type(getattr(first_val, '_target', first_val))
 
         super().__init__({k: MirageProxy(v, manager) for k, v in initdict.items()})
         for k, v in initdict.items():
