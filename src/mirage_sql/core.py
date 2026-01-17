@@ -4,28 +4,15 @@ from collections import UserList, UserDict
 from dataclasses import is_dataclass, fields
 from typing import Any, Iterable, Union, List, Dict, overload
 
+from .proxy import MirageProxy
+
 def get_sqlite_type(value: Any) -> str:
     if isinstance(value, bool): return "INTEGER"
     if isinstance(value, int): return "INTEGER"
     if isinstance(value, float): return "REAL"
     return "TEXT"
 
-class MirageProxy:
-    """Interceptors attribute changes to sync with the SQL index."""
-    def __init__(self, target: Any, manager: 'MirageManager'):
-        self.__dict__['_target'] = target
-        self.__dict__['_manager'] = manager
 
-    def __setattr__(self, name: str, value: Any):
-        setattr(self._target, name, value)
-        if not self._manager._in_transaction:
-            self._manager.sync_object(self._target)
-
-    def __getattr__(self, name: str):
-        return getattr(self._target, name)
-    
-    def __repr__(self):
-        return f"MirageProxy({repr(self._target)})"
 
 class MirageManager:
     """Handles the SQLite connection and schema inference."""
@@ -113,6 +100,15 @@ class MirageList(UserList):
 
 
     def append(self, item):
+        """
+        append intercepts the native list.append() function
+    
+        Args:
+            item to be added. potentially is a MirageProxy so need to check
+
+        Returns:
+            None
+        """
         # 1. Type Enforcement (Optional but recommended)
         real_item = getattr(item, '_target', item)
         if not isinstance(real_item, self.allowed_type):
