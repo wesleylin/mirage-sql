@@ -1,6 +1,7 @@
 import pytest
 from dataclasses import dataclass
 from mirage_sql import mirror, get_global_manager
+from mirage_sql.proxy import MirageProxy
 
 @dataclass
 class Player:
@@ -121,3 +122,50 @@ def test_manager_direct_join_query():
     assert retrieved_item.name == "Master Sword"
     assert retrieved_player is p  # Identity check
     assert retrieved_item is i    # Identity check
+
+
+def test_manager_resolve_capabilities():
+    """Verify the manager.resolve() method handles single, multi, and mixed results."""
+    manager = get_global_manager()
+    
+    # 1. Setup Data
+    alice = Player( 1,  "Alice")
+    stick = Item("Stick", 1)
+    mirror([alice])
+    mirror([stick])
+
+    # --- Scenario A: Single Object Resolution ---
+    # Querying just the pointer should return the proxy directly
+    res_a = manager.resolve("SELECT obj_ptr FROM player WHERE name = 'Alice'")
+    assert len(res_a) == 1
+    assert res_a[0].name == "Alice"
+    assert isinstance(res_a[0], MirageProxy)
+
+    # --- Scenario B: Multi-Object (Join) Resolution ---
+    # Querying multiple pointers should return a list of tuples
+    query_b = """
+        SELECT p.obj_ptr AS p_ptr, i.obj_ptr AS i_ptr 
+        FROM player p 
+        JOIN item i ON p.id = i.owner_id
+    """
+    res_b = manager.resolve(query_b)
+    assert len(res_b) == 1
+    p_proxy, i_proxy = res_b[0] # Unpacking the tuple
+    assert p_proxy.name == "Alice"
+    assert i_proxy.name == "Stick"
+
+    # --- Scenario C: Mixed Results (Data + Proxy) ---
+    # Querying a raw value alongside a pointer
+    query_c = "SELECT name, obj_ptr FROM player WHERE id = 1"
+    res_c = manager.resolve(query_c)
+    print(res_c)
+    
+    # res_c[0] should be a tuple: ("Alice", <MirageProxy>)
+    name_val, proxy_obj = res_c[0]
+    assert name_val == "Alice"
+    assert proxy_obj.name == "Alice"
+    
+    # --- Scenario D: No Pointers (Raw SQL) ---
+    # If no 'ptr' column is found, it should behave like a normal SQL fetch
+    res_d = manager.resolve("SELECT count(*) FROM player")
+    assert res_d[0] == 1

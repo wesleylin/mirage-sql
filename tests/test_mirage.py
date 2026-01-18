@@ -2,6 +2,7 @@ import pytest
 from dataclasses import dataclass
 from mirage_sql import mirror, get_global_manager
 
+
 @dataclass
 class Player:
     name: str
@@ -88,4 +89,5 @@ def test_weakref_cleanup(players):
     
     # The registry should still have them because 'db' holds the Proxy list
     assert ptr in db.manager._registry
+
 

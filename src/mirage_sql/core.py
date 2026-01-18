@@ -107,3 +107,35 @@ class MirageManager:
             results.append(result_tuple)
             
         return results
+    
+
+    def resolve(self, sql: str, params: tuple = ()) -> List[Any]:
+        cursor = self.conn.execute(sql, params)
+        rows:List = cursor.fetchall()
+        results = []
+
+        for row in rows:
+            # 1. Build a list of 'processed' values for this specific row
+            processed_row = []
+            
+            for col_name in row.keys():
+                val = row[col_name]
+                
+                # 2. Check if this specific column is a pointer
+                if 'ptr' in col_name.lower() and val is not None:
+                    raw_obj = self._registry.get(val)
+                    # Wrap in proxy if found, otherwise keep the ID (or None)
+                    processed_row.append(MirageProxy(raw_obj, self) if raw_obj else val)
+                else:
+                    # 3. It's regular data (int, string, float), keep it as is
+                    processed_row.append(val)
+
+            # 4. Shape the output
+            if len(processed_row) == 1:
+                # If only 1 column was selected, return the item directly
+                results.append(processed_row[0])
+            else:
+                # If multiple columns, return a tuple for unpacking
+                results.append(tuple(processed_row))
+                
+        return results
