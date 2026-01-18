@@ -15,12 +15,12 @@ heroes = mirror([
 ])
 
 print("Querying List...")
-strong_heroes = heroes.query("attr_hp > 50 AND attr_level >= 5")
+strong_heroes = heroes.query("hp > 50 AND level >= 5")
 print(f"Found: {strong_heroes}")
 
 # Live Sync Test
 heroes[0].hp = 10  # Arthur takes damage
-still_strong = heroes.query("attr_hp > 50")
+still_strong = heroes.query("hp > 50")
 print(f"Still strong: {still_strong}") # Only Gwen remains
 
 # --- Dict Demo ---
