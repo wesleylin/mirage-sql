@@ -12,6 +12,7 @@ class Player:
 class Item:
     name: str
     owner_id: int
+    value: int = 10
 
 @pytest.fixture(autouse=True)
 def clear_database():
@@ -169,3 +170,49 @@ def test_manager_resolve_capabilities():
     # If no 'ptr' column is found, it should behave like a normal SQL fetch
     res_d = manager.resolve("SELECT count(*) FROM player")
     assert res_d[0] == 1
+
+
+def test_manager_aggregation_resolution():
+    """Verify that resolve() correctly handles SQL aggregations like SUM and mixed GROUP BY results."""
+    manager = get_global_manager()
+    
+    # 1. Setup Data: Give Alice multiple items with different values
+    alice = Player(1, "Alice")
+    items = [
+        Item("Gold", 1, 100),
+        Item("Silver", 1, 50),
+        Item("Bronze", 1, 10)
+    ]
+    mirror([alice])
+    mirror(items)
+
+    # --- Scenario E: Simple Scalar Aggregation ---
+    # Should return a single number, not a list of proxies
+    res_e = manager.resolve("SELECT SUM(value) FROM item")
+    # res_e is a list of results, so res_e[0] is the sum
+    assert res_e[0] == 160
+
+    # --- Scenario F: Aggregate with Group By (Mixed Result) ---
+    # Query: Total value per player, returning the Player proxy and the sum
+    # This tests the 'tuple' return logic for mixed Data + Proxy
+    query_f = """
+        SELECT p.obj_ptr AS p_ptr, SUM(i.value) as total_wealth
+        FROM player p
+        JOIN item i ON p.id = i.owner_id
+        GROUP BY p.obj_ptr
+    """
+    res_f = manager.resolve(query_f)
+    
+    assert len(res_f) == 1
+    player_proxy, total_wealth = res_f[0]
+    
+    assert player_proxy.name == "Alice"
+    assert total_wealth == 160
+    assert isinstance(player_proxy, MirageProxy)
+
+    # --- Scenario G: Multiple Aggregates ---
+    # Should return a tuple of raw values
+    res_g = manager.resolve("SELECT COUNT(*), AVG(value) FROM item")
+    count, average = res_g[0]
+    assert count == 3
+    assert average == 160 / 3

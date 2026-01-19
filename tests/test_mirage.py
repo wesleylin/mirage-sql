@@ -36,6 +36,9 @@ def test_list_identity(players):
     results = db.query("score > 150")
     
     assert len(results) == 2
+
+    results.sort(key=lambda x: x.name)
+
     # Identity check (is) vs Equality check (==)
     assert results[0]._target is players[1] 
 
