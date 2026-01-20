@@ -5,6 +5,7 @@ from dataclasses import is_dataclass, fields
 from typing import Any, Iterable, Union, List, Dict, overload
 
 from .proxy import MirageProxy
+from .collections import MirageDict, MirageList
 
 def get_sqlite_type(value: Any) -> str:
     if isinstance(value, bool): return "INTEGER"
@@ -139,3 +140,20 @@ class MirageManager:
                 results.append(tuple(processed_row))
                 
         return results
+
+@overload
+def mirror(collection: List) -> MirageList: ...
+
+@overload
+def mirror(collection: Dict[Any, Any]) -> MirageDict: ...
+
+def mirror(collection: Union[List, Dict]) -> Union[MirageDict, MirageList]:
+    if not collection:
+        raise ValueError("Collection cannot be empty for inference.")
+    
+    sample = list(collection.values())[0] if isinstance(collection, dict) else collection[0]
+    manager = MirageManager(sample)
+    
+    if isinstance(collection, dict):
+        return MirageDict(collection, manager)
+    return MirageList(collection, manager)

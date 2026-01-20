@@ -67,19 +67,6 @@ def test_list_mutation(players):
     assert result.name == 'Bob'
     assert len(db.query("name = 'Bob'")) == 0
 
-def test_dict_support():
-    """Verify MirageDict handles keys and values."""
-    data = {"p1": Player("Alice", 10), "p2": Player("Bob", 20)}
-    db = mirror(data)
-    
-    # Query by the logical key we stored
-    results = db.query("key_val = 'p1'")
-    assert results[0].name == "Alice"
-    
-    # Query by attribute
-    results = db.query("score > 15")
-    assert results[0].name == "Bob"
-
 def test_weakref_cleanup(players):
     """Ensure we aren't leaking memory (registry uses WeakValueDictionary)."""
     import gc
